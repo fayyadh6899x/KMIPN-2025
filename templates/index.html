@@ -1,0 +1,991 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>AI Pothole Detection System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            height: 100%;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        #map {
+            height: 100%;
+            width: 100%;
+            position: relative;
+            border-radius: 0 15px 15px 0;
+            box-shadow: -5px 0 20px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Enhanced Sidebar */
+        .sidebar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 400px;
+            height: 100%;
+            background: linear-gradient(180deg, #ffffff 0%, #f8f9fa 100%);
+            border-right: 1px solid #e1e5e9;
+            box-shadow: 5px 0 25px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            overflow-y: auto;
+            backdrop-filter: blur(10px);
+        }
+
+        .sidebar::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .sidebar::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 3px;
+        }
+
+        .sidebar::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 3px;
+        }
+
+        .sidebar::-webkit-scrollbar-thumb:hover {
+            background: #a8a8a8;
+        }
+
+        /* Upload Section */
+        .upload-section {
+            padding: 25px 20px;
+            background: white;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .upload-section h5 {
+            color: #2c3e50;
+            font-weight: 600;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .file-input-container {
+            position: relative;
+            margin-bottom: 15px;
+        }
+
+        .file-input-container input[type="file"] {
+            display: none;
+        }
+
+        .file-input-label {
+            display: block;
+            padding: 15px;
+            border: 2px dashed #dee2e6;
+            border-radius: 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: #f8f9fa;
+            color: #6c757d;
+        }
+
+        .file-input-label:hover {
+            border-color: #1976d2;
+            background: rgba(102, 126, 234, 0.05);
+            color: #1976d2;
+        }
+
+        .file-input-label.has-file {
+            border-color: #28a745;
+            background: rgba(40, 167, 69, 0.05);
+            color: #28a745;
+        }
+
+        /* Stats Section */
+        .stats-section {
+            padding: 20px;
+            background: white;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            border: 1px solid #e9ecef;
+        }
+
+        .stat-number {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #495057;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            font-size: 0.8rem;
+            color: #6c757d;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Results Section */
+        .results-section {
+            padding: 20px;
+            flex: 1;
+        }
+
+        .results-section h5 {
+            color: #2c3e50;
+            font-weight: 600;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .detection-card {
+            background: white;
+            border: 1px solid #e9ecef;
+            border-radius: 12px;
+            padding: 18px;
+            margin-bottom: 15px;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .detection-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background-color: #1976d2;
+        }
+
+        .detection-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .detection-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .detection-icon {
+            width: 35px;
+            height: 35px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            background-color: #1976d2;
+            color: white;
+        }
+
+        .confidence-badge {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .conf-high {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+        }
+
+        .conf-medium {
+            background: linear-gradient(135deg, #ffc107 0%, #fd7e14 100%);
+            color: white;
+        }
+
+        .conf-low {
+            background: linear-gradient(135deg, #dc3545 0%, #e83e8c 100%);
+            color: white;
+        }
+
+        .detection-details {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 12px;
+        }
+
+        .detail-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.85rem;
+            color: #6c757d;
+        }
+
+        .detail-icon {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+            background: #f8f9fa;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            color: #495057;
+        }
+
+        /* Loading State */
+        .loading {
+            text-align: center;
+            padding: 30px;
+            color: #6c757d;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #6c757d;
+        }
+
+        .empty-icon {
+            font-size: 3rem;
+            margin-bottom: 15px;
+            opacity: 0.5;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                height: 50%;
+                position: relative;
+            }
+
+            #map {
+                height: 50%;
+                border-radius: 0;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* GPS Info Card */
+        .gps-card {
+            background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+            border: 1px solid #90caf9;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+
+        .gps-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 600;
+            color: #1565c0;
+            margin-bottom: 8px;
+        }
+
+        .gps-coords {
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            color: #1976d2;
+        }
+
+        /* Image Preview */
+        .image-preview {
+            margin-top: 15px;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .image-preview img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        .preview-container {
+            position: relative;
+            margin-top: 12px;
+        }
+
+        .preview-image {
+            width: 100%;
+            height: 120px;
+            object-fit: cover;
+            border-radius: 8px;
+            border: 2px solid #e9ecef;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .preview-image:hover {
+            border-color: #667eea;
+            transform: scale(1.02);
+        }
+
+        .preview-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        .preview-image:hover+.preview-overlay,
+        .preview-overlay:hover {
+            opacity: 1;
+        }
+
+        .zoom-icon {
+            color: white;
+            font-size: 1.5rem;
+        }
+
+        /* Modal Styles */
+        .modal-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 9999;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .modal-content {
+            max-width: 90vw;
+            max-height: 90vh;
+            position: relative;
+        }
+
+        .modal-image {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            border-radius: 8px;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: -40px;
+            right: 0;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 2rem;
+            cursor: pointer;
+            padding: 5px;
+        }
+
+        /* Legend */
+        .map-legend {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            z-index: 1000;
+        }
+
+        .legend-title {
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #2c3e50;
+            font-size: 0.9rem;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 5px;
+            font-size: 0.8rem;
+        }
+
+        .legend-marker {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            border: 2px solid white;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .legend-high {
+            background: #dc3545;
+        }
+
+        .legend-medium {
+            background: #ffc107;
+        }
+
+        .legend-low {
+            background: #6c757d;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Map Fullscreen -->
+    <div id="map">
+        <!-- Map Legend -->
+        <div class="map-legend">
+            <div class="legend-title">
+                <i class="fas fa-map-marker-alt me-1"></i>
+                Confidence Levels
+            </div>
+            <div class="legend-item">
+                <div class="legend-marker legend-high"></div>
+                <span>High (75%+)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-marker legend-medium"></div>
+                <span>Medium (40-75%)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-marker legend-low"></div>
+                <span>Low (<40%)< /span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Image Modal -->
+    <div class="modal-backdrop" id="imageModal">
+        <div class="modal-content">
+            <button class="modal-close" id="modalClose">
+                <i class="fas fa-times"></i>
+            </button>
+            <img class="modal-image" id="modalImage" src="" alt="Full size preview">
+        </div>
+    </div>
+
+    <!-- Enhanced Sidebar -->
+    <div class="sidebar">
+
+        <!-- Upload Section -->
+        <div class="upload-section">
+            <h5>
+                <i class="fas fa-cloud-upload-alt"></i>
+                Upload Image
+            </h5>
+            <form id="uploadForm">
+                <div class="file-input-container">
+                    <input type="file" id="fileInput" name="file" accept="image/*" required>
+                    <label for="fileInput" class="file-input-label" id="fileLabel">
+                        <i class="fas fa-camera mb-2" style="font-size: 2rem; opacity: 0.5;"></i>
+                        <div>Click to select image</div>
+                        <small>Supports JPG, PNG, JPEG</small>
+                    </label>
+                </div>
+                <button class="btn btn-primary w-100" type="submit" id="uploadBtn">
+                    <i class="fas fa-search me-2"></i>
+                    Analyze Image
+                </button>
+            </form>
+        </div>
+
+        <!-- Stats Section -->
+        <div class="stats-section">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-number" id="totalDetections">0</div>
+                    <div class="stat-label">Detections</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="highConfidence">0</div>
+                    <div class="stat-label">High Conf.</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Section -->
+        <div class="results-section">
+            <h5>
+                <i class="fas fa-list-alt"></i>
+                Detection Results
+            </h5>
+            <div id="resultList">
+                <div class="empty-state">
+                    <div class="empty-icon">
+                        <i class="fas fa-image"></i>
+                    </div>
+                    <p>Upload an image to start detecting potholes</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script>
+        const form = document.getElementById("uploadForm");
+        const fileInput = document.getElementById("fileInput");
+        const fileLabel = document.getElementById("fileLabel");
+        const uploadBtn = document.getElementById("uploadBtn");
+        const resultList = document.getElementById("resultList");
+        const totalDetections = document.getElementById("totalDetections");
+        const highConfidence = document.getElementById("highConfidence");
+        const imageModal = document.getElementById("imageModal");
+        const modalImage = document.getElementById("modalImage");
+        const modalClose = document.getElementById("modalClose");
+
+        // Initialize map
+        const map = L.map("map").setView([-1.2379, 116.8453], 12); 
+
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+            attribution: "&copy; <a href='https://www.openstreetmap.org/copyright'>OpenStreetMap</a> contributors"
+        }).addTo(map);
+
+        let currentMarkers = [];
+        let uploadedImageData = null;
+
+        // Custom marker icons for different confidence levels
+        const createCustomIcon = (confidence) => {
+            let color = '#6c757d'; // Low confidence - gray
+            let iconClass = 'fas fa-exclamation-triangle';
+
+            if (confidence > 0.75) {
+                color = '#dc3545'; // High confidence - red
+                iconClass = 'fas fa-exclamation-circle';
+            } else if (confidence > 0.4) {
+                color = '#ffc107'; // Medium confidence - yellow
+                iconClass = 'fas fa-exclamation-triangle';
+            }
+
+            return L.divIcon({
+                html: `
+          <div style="
+            background: ${color};
+            width: 25px;
+            height: 25px;
+            border-radius: 50%;
+            border: 3px solid white;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 12px;
+          ">
+            <i class="${iconClass}"></i>
+          </div>
+        `,
+                className: 'custom-marker',
+                iconSize: [25, 25],
+                iconAnchor: [12.5, 12.5]
+            });
+        };
+
+        // Modal functions
+        const openModal = (imageSrc) => {
+            modalImage.src = imageSrc;
+            imageModal.style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+        };
+
+        const closeModal = () => {
+            imageModal.style.display = 'none';
+            document.body.style.overflow = 'auto';
+        };
+
+        modalClose.addEventListener('click', closeModal);
+        imageModal.addEventListener('click', (e) => {
+            if (e.target === imageModal) {
+                closeModal();
+            }
+        });
+
+        // File input change handler
+        fileInput.addEventListener("change", function (e) {
+            if (e.target.files.length > 0) {
+                const fileName = e.target.files[0].name;
+                const file = e.target.files[0];
+
+                // Create preview URL for uploaded image
+                uploadedImageData = URL.createObjectURL(file);
+
+                fileLabel.classList.add("has-file");
+                fileLabel.innerHTML = `
+          <i class="fas fa-check-circle mb-2" style="font-size: 2rem; color: #28a745;"></i>
+          <div><strong>${fileName}</strong></div>
+          <small>Ready to analyze</small>
+        `;
+            } else {
+                if (uploadedImageData) {
+                    URL.revokeObjectURL(uploadedImageData);
+                    uploadedImageData = null;
+                }
+                fileLabel.classList.remove("has-file");
+                fileLabel.innerHTML = `
+          <i class="fas fa-camera mb-2" style="font-size: 2rem; opacity: 0.5;"></i>
+          <div>Click to select image</div>
+          <small>Supports JPG, PNG, JPEG</small>
+        `;
+            }
+        });
+
+        // Form submit handler
+        form.addEventListener("submit", async (e) => {
+            e.preventDefault();
+
+            // Show loading state
+            uploadBtn.disabled = true;
+            uploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Analyzing...';
+
+            resultList.innerHTML = `
+        <div class="loading">
+          <div class="spinner"></div>
+          <p>AI is analyzing your image...</p>
+        </div>
+      `;
+
+            try {
+                const formData = new FormData();
+                formData.append("file", fileInput.files[0]);
+
+                const res = await fetch("/predict", {
+                    method: "POST",
+                    body: formData
+                });
+
+                const data = await res.json();
+                displayResults(data);
+
+            } catch (error) {
+                console.error("Error:", error);
+                resultList.innerHTML = `
+          <div class="alert alert-danger">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            Error analyzing image. Please try again.
+          </div>
+        `;
+            } finally {
+                uploadBtn.disabled = false;
+                uploadBtn.innerHTML = '<i class="fas fa-search me-2"></i>Analyze Image';
+            }
+        });
+
+        function displayResults(data) {
+            resultList.innerHTML = "";
+
+            // Clear existing markers
+            currentMarkers.forEach(marker => {
+                map.removeLayer(marker);
+            });
+            currentMarkers = [];
+
+            if (data.success && data.detections.length > 0) {
+                let highConfCount = 0;
+
+                // GPS Information
+                if (data.gps) {
+                    const gpsCard = document.createElement("div");
+                    gpsCard.className = "gps-card";
+                    gpsCard.innerHTML = `
+            <div class="gps-header">
+              <i class="fas fa-map-marker-alt"></i>
+              GPS Location Found
+            </div>
+            <div class="gps-coords">
+              ${data.gps.latitude.toFixed(6)}, ${data.gps.longitude.toFixed(6)}
+            </div>
+          `;
+                    resultList.appendChild(gpsCard);
+
+                    // Update map view
+                    map.setView([data.gps.latitude, data.gps.longitude], 16);
+                }
+
+                // Add uploaded image preview
+                if (uploadedImageData) {
+                    const imageCard = document.createElement("div");
+                    imageCard.className = "detection-card";
+                    imageCard.innerHTML = `
+            <div class="detection-header">
+              <div class="detection-title">
+                <div class="detection-icon">
+                  <i class="fas fa-image"></i>
+                </div>
+                <div>
+                  <div>Original Image</div>
+                  <small>Click to view full size</small>
+                </div>
+              </div>
+            </div>
+            <div class="preview-container">
+              <img class="preview-image" src="${uploadedImageData}" alt="Original image">
+              <div class="preview-overlay">
+                <i class="fas fa-search-plus zoom-icon"></i>
+              </div>
+            </div>
+          `;
+
+                    // Add click event for image preview
+                    const previewImg = imageCard.querySelector('.preview-image');
+                    const overlay = imageCard.querySelector('.preview-overlay');
+
+                    [previewImg, overlay].forEach(el => {
+                        el.addEventListener('click', () => openModal(uploadedImageData));
+                    });
+
+                    resultList.appendChild(imageCard);
+                }
+
+                // Detection Results with individual markers
+                data.detections.forEach((det, index) => {
+                    let confClass = "conf-low";
+                    let confText = "Low";
+                    let confidence = det.confidence;
+
+                    if (confidence > 0.75) {
+                        confClass = "conf-high";
+                        confText = "High";
+                        highConfCount++;
+                    } else if (confidence > 0.4) {
+                        confClass = "conf-medium";
+                        confText = "Medium";
+                    }
+
+                    const card = document.createElement("div");
+                    card.className = "detection-card";
+                    card.innerHTML = `
+            <div class="detection-header">
+              <div class="detection-title">
+                <div class="detection-icon">
+                  <i class="fas fa-exclamation-triangle"></i>
+                </div>
+                <div>
+                  <div>${det.class}</div>
+                  <small>Detection #${index + 1}</small>
+                </div>
+              </div>
+              <div class="confidence-badge ${confClass}">
+                ${(confidence * 100).toFixed(1)}%
+              </div>
+            </div>
+            <div class="detection-details">
+              <div class="detail-item">
+                <div class="detail-icon">
+                  <i class="fas fa-expand-alt"></i>
+                </div>
+                <span>Size: ${Math.round(det.x2 - det.x1)} x ${Math.round(det.y2 - det.y1)}</span>
+              </div>
+              <div class="detail-item">
+                <div class="detail-icon">
+                  <i class="fas fa-crosshairs"></i>
+                </div>
+                <span>Center: (${Math.round((det.x1 + det.x2) / 2)}, ${Math.round((det.y1 + det.y2) / 2)})</span>
+              </div>
+              <div class="detail-item">
+                <div class="detail-icon">
+                  <i class="fas fa-certificate"></i>
+                </div>
+                <span>Confidence: ${confText}</span>
+              </div>
+              <div class="detail-item">
+                <div class="detail-icon">
+                  <i class="fas fa-map-pin"></i>
+                </div>
+                <span>Box: (${det.x1}, ${det.y1})</span>
+              </div>
+            </div>
+          `;
+                    resultList.appendChild(card);
+
+                    // Add marker to map if GPS data available
+                    if (data.gps) {
+                        // Create slight offset for multiple detections
+                        const latOffset = (Math.random() - 0.5) * 0.001;
+                        const lngOffset = (Math.random() - 0.5) * 0.001;
+
+                        const marker = L.marker([
+                            data.gps.latitude + latOffset,
+                            data.gps.longitude + lngOffset
+                        ], {
+                            icon: createCustomIcon(confidence)
+                        }).addTo(map);
+
+                        // Popup content with detection details
+                        const popupContent = `
+              <div style="min-width: 200px;">
+                <h6 style="margin-bottom: 10px; color: #2c3e50;">
+                  <i class="fas fa-exclamation-triangle me-1"></i>
+                  ${det.class} #${index + 1}
+                </h6>
+                <div style="margin-bottom: 8px;">
+                  <strong>Confidence:</strong> 
+                  <span style="color: ${confidence > 0.75 ? '#dc3545' : confidence > 0.4 ? '#ffc107' : '#6c757d'};">
+                    ${(confidence * 100).toFixed(1)}% (${confText})
+                  </span>
+                </div>
+                <div style="margin-bottom: 8px;">
+                  <strong>Size:</strong> ${Math.round(det.x2 - det.x1)} x ${Math.round(det.y2 - det.y1)}px
+                </div>
+                <div style="margin-bottom: 8px;">
+                  <strong>Position:</strong> (${Math.round((det.x1 + det.x2) / 2)}, ${Math.round((det.y1 + det.y2) / 2)})
+                </div>
+                <div style="font-size: 0.8em; color: #6c757d;">
+                  <i class="fas fa-info-circle me-1"></i>
+                  Detected pothole
+                </div>
+              </div>
+            `;
+
+                        marker.bindPopup(popupContent);
+                        currentMarkers.push(marker);
+
+                        // Add click event to detection card to highlight marker
+                        card.addEventListener('click', () => {
+                            map.setView([data.gps.latitude + latOffset, data.gps.longitude + lngOffset], 18);
+                            marker.openPopup();
+                        });
+                    }
+                });
+
+                // Update stats
+                totalDetections.textContent = data.detections.length;
+                highConfidence.textContent = highConfCount;
+
+                if (!data.gps) {
+                    const noGpsAlert = document.createElement("div");
+                    noGpsAlert.className = "alert alert-warning";
+                    noGpsAlert.innerHTML = `
+            <i class="fas fa-info-circle me-2"></i>
+            No GPS metadata found. Markers cannot be placed on map.
+          `;
+                    resultList.appendChild(noGpsAlert);
+                }
+
+            } else if (data.success && data.detections.length === 0) {
+                // Still show original image even if no detections
+                if (uploadedImageData) {
+                    const imageCard = document.createElement("div");
+                    imageCard.className = "detection-card";
+                    imageCard.innerHTML = `
+            <div class="detection-header">
+              <div class="detection-title">
+                <div class="detection-icon">
+                  <i class="fas fa-image"></i>
+                </div>
+                <div>
+                  <div>Original Image</div>
+                  <small>Click to view full size</small>
+                </div>
+              </div>
+            </div>
+            <div class="preview-container">
+              <img class="preview-image" src="${uploadedImageData}" alt="Original image">
+              <div class="preview-overlay">
+                <i class="fas fa-search-plus zoom-icon"></i>
+              </div>
+            </div>
+          `;
+
+                    const previewImg = imageCard.querySelector('.preview-image');
+                    const overlay = imageCard.querySelector('.preview-overlay');
+
+                    [previewImg, overlay].forEach(el => {
+                        el.addEventListener('click', () => openModal(uploadedImageData));
+                    });
+
+                    resultList.appendChild(imageCard);
+                }
+
+                const noDetectionCard = document.createElement("div");
+                noDetectionCard.className = "alert alert-success";
+                noDetectionCard.innerHTML = `
+          <i class="fas fa-check-circle me-2"></i>
+          Great! No potholes detected in this image
+        `;
+                resultList.appendChild(noDetectionCard);
+
+                totalDetections.textContent = "0";
+                highConfidence.textContent = "0";
+            } else {
+                resultList.innerHTML = `
+          <div class="alert alert-danger">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            ${data.error || "Failed to analyze image"}
+          </div>
+        `;
+            }
+        }
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            if (uploadedImageData) {
+                URL.revokeObjectURL(uploadedImageData);
+            }
+        });
+    </script>
+</body>
+
+</html>

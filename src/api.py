@@ -1,5 +1,5 @@
 from fastapi import FastAPI, UploadFile, File
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, HTMLResponse
 import shutil
 import uuid
 import os
@@ -140,6 +140,11 @@ async def predict(file: UploadFile = File(...)):
 @app.get("/")
 async def root():
     return {"message": "Berjalan akses /docs"}
+
+@app.get("/upload", response_class=HTMLResponse)
+async def upload_page():
+    with open("templates/index.html", "r", encoding="utf-8") as f:
+        return f.read()
 
 
 if __name__ == "__main__":
